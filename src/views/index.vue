@@ -39,22 +39,34 @@ const render = async () => {
   // let pointLight = new THREE.PointLight();
   // pointLight.position.set(200, 200, 200); //设置点光源位置
   // scene.add(pointLight); //将点光源添加至场景
-  const parallelLight = new THREE.DirectionalLight(0xffffff, 1);
-  parallelLight.position.set(10, 10, 0).normalize();
-  parallelLight.castShadow = true;
-  scene.add(parallelLight);
+  
+  // const parallelLight = new THREE.DirectionalLight(0xffffff, 1);
+  // parallelLight.position.set(10, 10, 0).normalize();
+  // parallelLight.castShadow = true;
+  // scene.add(parallelLight);
 
-  parallelLight.position.copy(camera.position); // 将位置设置为与相机一致
-  parallelLight.quaternion.copy(camera.quaternion); // 将朝向设置为与相机一致
+  // parallelLight.position.copy(camera.position); // 将位置设置为与相机一致
+  // parallelLight.quaternion.copy(camera.quaternion); // 将朝向设置为与相机一致
 
   // gltf模型
   const gltfLoader = new GLTFLoader();
   // 当前模型采用了Draco 压缩格式压缩模型了，所以需要使用DRACOLoader进行解码
   const dracoloader = new DRACOLoader();
   dracoloader.setDecoderPath("./node_modules/three/examples/jsm/libs/draco/");
+  dracoloader.setDecoderConfig({ type: "js" });
   gltfLoader.setDRACOLoader(dracoloader);
   gltfLoader.load("./model/LittlestTokyo.glb", (glb) => {
     let model = glb.scene;
+    model.traverse(( child ) =>  {
+      if ( child.isMesh ) {
+        //模型阴影
+        child.castShadow = true;
+        child.receiveShadow = true;
+        // 模型颜色
+        child.material.emissive =  child.material.color;
+        child.material.emissiveMap = child.material.map ;
+      }
+    });
     animation = glb.animations[0];
     // 模型缩放
     model.scale.set(0.005, 0.005, 0.005);
