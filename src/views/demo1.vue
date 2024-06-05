@@ -1,88 +1,126 @@
 <template>
-  <div id="threeId" ref="elementRef"></div>
+  <div class="container" id="container"></div>
 </template>
+<script lang="ts" setup>
+let scene = null as any, //场景
+  camera = null as any, //相机
+  renderer = null as any, //渲染器
+  controls = null as any; //轨道控制器
 
-<script setup lang="ts">
+// 模型自带动画相关
+let mixer = null as any,
+  animation = null as any;
+let clock = new THREE.Clock();
+
+import { onMounted, reactive, ref } from "vue";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
-import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
-import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
-import { ref, onMounted } from "vue";
-let width, height;
-let scene, camera, renderer, controls;
-let mixer, animation;
-let clock = new THREE.Clock();
-const elementRef = ref(null);
-onMounted(() => {
-  const element = elementRef.value;
-  width = element.offsetWidth;
-  height = element.offsetHeight;
-  initScene();
-  initModel();
-  initEnv();
-});
-function initScene() {
-  // 初始化场景: 创建场景，相机，物体，渲染器
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
+import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader";
+
+//设置three的方法
+const render = async () => {
+  //1.创建场景
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xbfe3dd);
-  camera = new THREE.PerspectiveCamera(60, width / height, 1, 1000);
-  camera.position.set(20, 20, 20);
+  //2.创建相机
+  camera = new THREE.PerspectiveCamera(
+    105,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    1000
+  );
+  //3.设置相机位置
+  camera.position.set(0, 0, 4);
   scene.add(camera);
-  // 三维坐标
-  //onst axesHelper = new THREE.AxesHelper(40)
-  //scene.add(axesHelper)
-  // antialias：是否执行抗锯齿
-  renderer = new THREE.WebGLRenderer({ antialias: true });
-  // 设备像素比
-  renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.setSize(width, height);
-  elementRef.value.appendChild(renderer.domElement);
-  controls = new OrbitControls(camera, renderer.domElement);
-}
-function initEnv() {
-  const pmremGenerator = new THREE.PMREMGenerator(renderer);
-  scene.environment = pmremGenerator.fromScene(
-    new RoomEnvironment(),
-    1
-  ).texture;
-}
-function initModel() {
-  const loader = new GLTFLoader();
-  const dracoloader = new DRACOLoader();
-  dracoloader.setDecoderPath("./node_modules/three/examples/jsm/libs/draco/");
-  dracoloader.setDecoderConfig({ type: "js" });
-  loader.setDRACOLoader(dracoloader);
-  loader.load("./model/LittlestTokyo.glb", (glb) => {
-    let model = glb.scene;
-    animation = glb.animations[0];
-    model.scale.set(0.05, 0.05, 0.05);
-    scene.add(model);
-    mixer = new THREE.AnimationMixer(model);
-    mixer.clipAction(animation).play();
-    render();
+
+  //设置环境光，要不然模型没有颜色
+  let ambientLight = new THREE.AmbientLight(); //设置环境光
+  scene.add(ambientLight); //将环境光添加到场景中
+
+
+  // const texture = THREE.ImageUtils.loadTexture( 'Baking-mountain4K.jpg' );
+  const fbxloader = new FBXLoader();
+  fbxloader.load("./model/bottle.fbx", (object) => {
+    object.traverse( function ( child ) {
+      console.log('child', child);
+          if ( child.isMesh ) {
+              //模型阴影
+              child.castShadow = true;
+              child.receiveShadow = true;
+              // 模型颜色
+              child.material.emissive =  child.material.color;
+              child.material.emissiveMap = child.material.map ;
+          }
+    });
+    // 模型缩放
+    object.scale.multiplyScalar(.1)
+    scene.add( object )
   });
-}
-function render() {
-  requestAnimationFrame(render);
-  const delta = clock.getDelta();
+  // 添加地面
+  const meshfloor = new THREE.Mesh(
+    new THREE.PlaneGeometry(10, 10), // 创建平面
+    new THREE.MeshPhongMaterial({
+      color: 0xf1f1f1,
+      side: THREE.DoubleSide
+    })
+  )
+  // 旋转地面
+  meshfloor.rotation.x = Math.PI / 2
+  // 地面接收阴影
+  meshfloor.receiveShadow = true
+  scene.add(meshfloor)
+
+  //初始化渲染器
+  //渲染器透明
+  renderer = new THREE.WebGLRenderer({
+    alpha: true, //渲染器透明
+    antialias: true, //抗锯齿
+    precision: "highp", //着色器开启高精度
+  });
+  // 可以渲染阴影
+  renderer.shadowMap.enabled = true;
+  //开启HiDPI设置
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  renderer.outputEncoding = THREE.sRGBEncoding
+  //设置渲染器尺寸大小
+  renderer.setClearColor(0x228b22, 0.1);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  //将webgl渲染的canvas内容添加到div
+  let container = document.getElementById("container") as any;
+  container.appendChild(renderer.domElement);
+  //使用渲染器 通过相机将场景渲染出来
+  renderer.render(scene, camera);
+  controls = new OrbitControls(camera, renderer.domElement);
+};
+const animate = () => {
+  requestAnimationFrame(animate);
   controls.update();
   renderer.render(scene, camera);
-  mixer.update(delta);
-}
+  //  当前模型的自带动画
+  //  const delta = clock.getDelta()
+  //  mixer.update(delta)
+};
+const createControls = () => {
+  controls.enablePan = true; // 是否开启右键拖拽
+  controls.maxPolarAngle = 2; // 上下翻转的最大角度
+  controls.minPolarAngle = 0.0; // 上下翻转的最小角度
+  controls.autoRotate = true; // 是否自动旋转
+  // controls.enableZoom = false // 是否可以缩放 默认是true
+  controls.dampingFactor = 0.5; // 动态阻尼系数 就是鼠标拖拽旋转灵敏度，阻尼越小越灵敏
+};
+onMounted(() => {
+  render();
+  animate();
+  createControls();
+});
 </script>
-
-<style>
-body,
-html {
-  padding: 0;
-  margin: 0;
-}
-</style>
-
 <style scoped>
-#container {
-  width: 100%;
-  height: calc(100vh);
+.container {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
 }
 </style>
