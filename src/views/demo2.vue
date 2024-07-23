@@ -68,6 +68,7 @@ const render = async () => {
         // 模型颜色
         child.material.emissive =  child.material.color;
         child.material.emissiveMap = child.material.map ;
+        
       }
     });
     animation = glb.animations?.[0];

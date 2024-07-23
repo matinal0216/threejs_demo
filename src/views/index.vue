@@ -1,11 +1,27 @@
 <template>
-  <div class="container" id="container"></div>
+  <div class="container" id="container" @click.stop="showModal = true">
+    <!--弹窗-->
+    <section class="threeModel" v-if="showModal">
+      <header class="threeModelTitle">
+        <div class="threeTitleLeft">东方明珠简介</div>
+        <div class="threeTitleRight" @click.stop="showModal = false">×</div>
+      </header>
+      <div class="threeModelContent">
+        东方明珠广播电视塔，简称“东方明珠”，上海市标志性建筑之一。
+        <section class="contentImg">
+          <img src="../public/img/dongfang.png" />
+        </section>
+      </div>
+    </section>
+  </div>
+
 </template>
 <script lang="ts" setup>
 let scene = null as any, //场景
   camera = null as any, //相机
   renderer = null as any, //渲染器
-  controls = null as any; //轨道控制器
+  controls = null as any, //轨道控制器
+  model = null as any; //模型
 
 // 模型自带动画相关
 let mixer = null as any,
@@ -39,7 +55,7 @@ const render = async () => {
   // let pointLight = new THREE.PointLight();
   // pointLight.position.set(200, 200, 200); //设置点光源位置
   // scene.add(pointLight); //将点光源添加至场景
-  
+
   // const parallelLight = new THREE.DirectionalLight(0xffffff, 1);
   // parallelLight.position.set(10, 10, 0).normalize();
   // parallelLight.castShadow = true;
@@ -56,15 +72,15 @@ const render = async () => {
   dracoloader.setDecoderConfig({ type: "js" });
   gltfLoader.setDRACOLoader(dracoloader);
   gltfLoader.load("./model/LittlestTokyo.glb", (glb) => {
-    let model = glb.scene;
-    model.traverse(( child ) =>  {
-      if ( child.isMesh ) {
+    model = glb.scene;
+    model.traverse((child) => {
+      if (child.isMesh) {
         //模型阴影
         child.castShadow = true;
         child.receiveShadow = true;
         // 模型颜色
-        child.material.emissive =  child.material.color;
-        child.material.emissiveMap = child.material.map ;
+        child.material.emissive = child.material.color;
+        child.material.emissiveMap = child.material.map;
       }
     });
     animation = glb.animations[0];
@@ -74,7 +90,9 @@ const render = async () => {
     scene.add(model);
     // 模型自带动画
     mixer = new THREE.AnimationMixer(model);
-    mixer.clipAction(animation).play();
+    const clipAction = mixer.clipAction(animation);
+    clipAction.play();
+    clipAction.timeScale = 1; // 模型动画播放速度
   });
 
   //初始化渲染器
@@ -85,7 +103,7 @@ const render = async () => {
     precision: "highp", //着色器开启高精度
   });
   // 可以渲染阴影
-  renderer.shadowMap.enabled = true
+  renderer.shadowMap.enabled = true;
   //开启HiDPI设置
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -98,21 +116,29 @@ const render = async () => {
   //使用渲染器 通过相机将场景渲染出来
   renderer.render(scene, camera);
   controls = new OrbitControls(camera, renderer.domElement);
-
 };
 const animate = () => {
   requestAnimationFrame(animate);
   controls.update();
   renderer.render(scene, camera);
+
   //  当前模型的自带动画
-  //  const delta = clock.getDelta()
-  //  mixer.update(delta)
+  const delta = clock.getDelta();
+  // mixer.update(delta);
+  // console.log("delta", Math.PI / 4);
+  // model.rotation.z += delta * 0.2;
+  // model.rotation.y += delta * 0.2;
+  // model.rotation.x += delta * 0.5;
+  // model.rotation.y += 0.01; // 设置模型自转
+  // model.rotation.z = Math.PI/4
 };
 const createControls = () => {
   controls.enablePan = true; // 是否开启右键拖拽
-  controls.maxPolarAngle = 2; // 上下翻转的最大角度
+  // controls.maxPolarAngle = 2; // 上下翻转的最大角度
+  controls.maxPolarAngle = 0.2; // 上下翻转的最大角度
+
   controls.minPolarAngle = 0.0; // 上下翻转的最小角度
-  controls.autoRotate = true; // 是否自动旋转
+  controls.autoRotate = false; // 是否自动旋转
   // controls.enableZoom = false // 是否可以缩放 默认是true
   controls.dampingFactor = 0.5; // 动态阻尼系数 就是鼠标拖拽旋转灵敏度，阻尼越小越灵敏
 };
@@ -121,11 +147,74 @@ onMounted(() => {
   animate();
   createControls();
 });
+
+const showModal = ref(false)
 </script>
 <style scoped>
 .container {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+}
+.threeModel {
+  width: 400px;
+  height: 220px;
+  border-radius: 5px;
+  color: #fff;
+  background-color: rgba(6, 7, 80, 0.8);
+  position: fixed;
+  left: 50vw;
+  top: 20vh;
+  font-size: 18px;
+}
+.threeModelTitle {
+  width: 100%;
+
+  padding-top: 5px;
+  padding-left: 5px;
+  height: 40px;
+  display: flex;
+  align-content: center;
+  justify-content: center;
+}
+.threeTitleLeft {
+  flex: 5;
+  height: 100%;
+  text-align: left;
+  padding-left: 5px;
+}
+.threeTitleRight {
+  flex: 1;
+  height: 100%;
+  cursor: pointer;
+  margin-top: -8px;
+  font-size: 30px;
+}
+.threeModelContent {
+  width: 98%;
+  margin: 0 auto;
+  height: 180px;
+  font-size: 16px !important;
+  overflow: auto;
+}
+.threeModelContent::-webkit-scrollbar {
+  /*滚动条整体样式*/
+  width: 6px;
+  background: #041c34;
+}
+.threeModelContent::-webkit-scrollbar-thumb {
+  /*滚动条里面小方块*/
+  border-radius: 3px;
+  height: 50px;
+  background-color: #007acc;
+}
+.contentImg {
+  width: 96%;
+  height: 200px;
+  margin: 0 auto;
+}
+.contentImg img {
+  width: 100%;
+  height: 100%;
 }
 </style>

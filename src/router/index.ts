@@ -10,7 +10,7 @@ const rootRoutes = Object.keys(viewRouterModules).map((filePath) => {
   const folderName = path.match(/^([^\/]+)(?:\/|$)/)[1];
   // 名称映射表
   const titles = {
-    ows: "三麟中泰（厦门）实业有限公司",
+    ows: "",
   };
   const fileNameList = path.split("/").map((i, index) => {
     if (index === 0) return i;
